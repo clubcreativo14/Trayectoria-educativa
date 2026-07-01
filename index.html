@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nivel 1: El camino a EGRESAR</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+  :root{
+    --sky-top:#5C94FC;
+    --sky-bottom:#A6C8FF;
+    --brick:#B53120;
+    --brick-dark:#7A1F14;
+    --block:#FBD000;
+    --block-dark:#C79A00;
+    --ink:#1A1A1A;
+    --flag-red:#E63312;
+    --good:#2ECC40;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{ background:#222; font-family:'VT323', monospace; overflow:hidden; height:100%; }
+
+  .stage{
+    width:100%;
+    max-width:1280px;
+    aspect-ratio:16/9;
+    margin:0 auto;
+    position:relative;
+    overflow:hidden;
+    background:linear-gradient(180deg, var(--sky-top) 0%, var(--sky-top) 55%, var(--sky-bottom) 100%);
+    border:6px solid var(--ink);
+    touch-action:manipulation;
+    cursor:pointer;
+  }
+  @media (max-width:700px){ .stage{ aspect-ratio:9/15; border-width:4px; } }
+
+  .cloud{ position:absolute; background:#fff; border:3px solid var(--ink); border-radius:40%; opacity:.95; }
+  .cloud::before,.cloud::after{ content:''; position:absolute; background:#fff; border:3px solid var(--ink); border-radius:50%; }
+  .cloud1{ width:7%; height:5%; top:8%; left:10%; }
+  .cloud1::before{ width:55%; height:140%; top:-70%; left:8%; border-radius:50% 50% 0 0;}
+  .cloud1::after{ width:40%; height:110%; top:-50%; left:55%; border-radius:50% 50% 0 0;}
+  .cloud2{ width:5%; height:4%; top:18%; left:55%; }
+  .cloud2::before{ width:50%; height:130%; top:-60%; left:10%; border-radius:50% 50% 0 0;}
+  .cloud2::after{ width:35%; height:100%; top:-40%; left:55%; border-radius:50% 50% 0 0;}
+
+  /* ---------- HUD ---------- */
+  .hud{
+    position:absolute; top:3%; left:3%; right:3%;
+    display:flex; justify-content:space-between; align-items:center;
+    z-index:20; font-family:'Press Start 2P', monospace; color:#fff;
+    text-shadow:2px 2px 0 var(--ink); font-size:clamp(10px,1.6vw,15px);
+  }
+  .hud .panel{ background:rgba(0,0,0,.35); border:2px solid var(--ink); padding:6px 10px; border-radius:4px; }
+  .lives-row{ display:flex; gap:4px; }
+  .lives-row .heart{ filter:drop-shadow(1px 1px 0 var(--ink)); }
+
+  .progress-wrap{
+    position:absolute; top:11%; left:3%; right:3%; height:14px;
+    background:rgba(0,0,0,.35); border:2px solid var(--ink); border-radius:8px; z-index:20; overflow:hidden;
+  }
+  .progress-bar{ height:100%; width:0%; background:var(--good); transition:width .15s linear; }
+
+  /* ---------- WORLD ---------- */
+  .viewport{ position:absolute; top:0; left:0; right:0; bottom:0; }
+  .world{ position:absolute; bottom:0; left:0; height:100%; will-change:transform; }
+
+  .ground{
+    position:absolute; bottom:0; left:0; height:18%; width:6000px;
+    background: repeating-linear-gradient(90deg, var(--brick) 0 38px, var(--brick-dark) 38px 42px), var(--brick);
+    border-top:6px solid var(--ink);
+  }
+
+  .obj{ position:absolute; bottom:18%; display:flex; flex-direction:column; align-items:center; }
+  .pillar{
+    width:74px;
+    background:repeating-linear-gradient(180deg, var(--brick) 0 18px, var(--brick-dark) 18px 20px);
+    border:4px solid var(--ink); border-bottom:none;
+    display:flex; align-items:flex-start; justify-content:center; padding-top:8px;
+  }
+  .pillar .emoji{ font-size:30px; filter:drop-shadow(2px 2px 0 var(--ink)); }
+  .obstacle-name{
+    position:absolute; bottom:100%; margin-bottom:6px;
+    font-family:'Press Start 2P', monospace; font-size:10px; color:#fff;
+    text-shadow:2px 2px 0 var(--ink); text-align:center; width:120px; left:50%; transform:translateX(-50%);
+    white-space:pre-line; line-height:1.5;
+  }
+
+  .star{
+    width:46px; height:46px;
+    background:linear-gradient(180deg,var(--block),var(--block-dark));
+    border:4px solid var(--ink); border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; bottom:46%;
+    animation:bob 1.8s ease-in-out infinite;
+  }
+  @keyframes bob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-8px);} }
+  .star.collected{ animation:none; opacity:0; transform:translateY(-40px) scale(1.4); transition:all .4s ease; }
+
+  .goal{ bottom:18%; display:flex; flex-direction:column; align-items:center; }
+  .flagpole{ position:relative; width:8px; height:170px; background:var(--ink); }
+  .flag{
+    position:absolute; top:6px; left:8px; width:0; height:0;
+    border-top:20px solid transparent; border-bottom:20px solid transparent;
+    border-left:46px solid var(--flag-red); transform-origin:left center; animation:wave 1.4s ease-in-out infinite;
+  }
+  @keyframes wave{ 0%,100%{ transform:rotate(0);} 50%{ transform:rotate(-7deg);} }
+  .goal-label{
+    margin-top:8px; font-family:'Press Start 2P', monospace; font-size:13px; color:#FFE45C;
+    text-shadow:2px 2px 0 var(--ink);
+  }
+
+  /* ---------- CHARACTER (nenito) ---------- */
+  .nenito{
+    position:absolute; left:90px; bottom:18%; width:44px; height:58px; z-index:10;
+  }
+  .nenito .cap{ position:absolute; top:0; left:2px; width:40px; height:12px; background:var(--flag-red); border:3px solid var(--ink); border-radius:8px 8px 0 0; }
+  .nenito .brim{ position:absolute; top:8px; left:-2px; width:48px; height:7px; background:var(--flag-red); border:3px solid var(--ink); border-radius:4px; }
+  .nenito .face{ position:absolute; top:13px; left:7px; width:30px; height:15px; background:#FFC89A; border:3px solid var(--ink); border-top:none; }
+  .nenito .backpack{ position:absolute; top:22px; left:-6px; width:14px; height:20px; background:#0078D4; border:3px solid var(--ink); border-radius:4px; }
+  .nenito .body{ position:absolute; top:27px; left:1px; width:42px; height:18px; background:#0055D4; border:3px solid var(--ink); border-radius:4px; }
+  .nenito .shirt{ position:absolute; top:27px; left:8px; width:28px; height:9px; background:var(--flag-red); border:3px solid var(--ink); border-top:none; border-radius:0 0 4px 4px; }
+  .nenito.hurt{ filter:brightness(2) saturate(0); }
+  .nenito.run .face{ animation:none; }
+
+  /* ---------- TOASTS ---------- */
+  .toast{
+    position:absolute; left:50%; top:30%; transform:translate(-50%,0);
+    font-family:'Press Start 2P', monospace; font-size:14px; color:#fff;
+    text-shadow:2px 2px 0 var(--ink); z-index:30; pointer-events:none; opacity:0;
+  }
+  .toast.show{ animation:toastUp 1s ease forwards; }
+  @keyframes toastUp{
+    0%{ opacity:0; transform:translate(-50%,10px) scale(.8);}
+    20%{ opacity:1; transform:translate(-50%,0) scale(1);}
+    80%{ opacity:1; }
+    100%{ opacity:0; transform:translate(-50%,-30px) scale(1);}
+  }
+
+  /* ---------- OVERLAYS ---------- */
+  .overlay{
+    position:absolute; inset:0; z-index:40; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:16px; text-align:center; padding:6%;
+    background:rgba(20,30,60,.78); color:#fff;
+  }
+  .overlay h2{ font-family:'Press Start 2P', monospace; font-size:clamp(16px,3.4vw,28px); text-shadow:3px 3px 0 var(--ink); }
+  .overlay p{ font-family:'VT323', monospace; font-size:clamp(15px,2.4vw,22px); color:#FFE45C; max-width:80%; }
+  .btn{
+    font-family:'Press Start 2P', monospace; font-size:clamp(11px,1.8vw,15px);
+    background:var(--good); color:var(--ink); border:4px solid var(--ink);
+    padding:14px 22px; border-radius:6px; cursor:pointer; box-shadow:4px 4px 0 rgba(0,0,0,.4);
+  }
+  .btn:active{ transform:translate(2px,2px); box-shadow:2px 2px 0 rgba(0,0,0,.4); }
+  .hidden{ display:none !important; }
+
+  .tap-hint{
+    position:absolute; bottom:3%; left:50%; transform:translateX(-50%);
+    font-family:'VT323', monospace; color:#fff; text-shadow:2px 2px 0 var(--ink);
+    font-size:15px; z-index:15; pointer-events:none; opacity:.9;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+
+  <div class="cloud cloud1"></div>
+  <div class="cloud cloud2"></div>
+
+  <div class="hud">
+    <div class="panel">NIVEL 1-1: EGRESAR</div>
+    <div class="panel lives-row" id="livesRow"></div>
+  </div>
+  <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+  <div class="viewport">
+    <div class="world" id="world">
+      <div class="ground"></div>
+      <!-- obstacles & stars & goal injected by JS -->
+    </div>
+
+    <div class="nenito" id="nenito">
+      <div class="cap"></div>
+      <div class="brim"></div>
+      <div class="face"></div>
+      <div class="backpack"></div>
+      <div class="body"></div>
+      <div class="shirt"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="tap-hint" id="tapHint">TOCÁ LA PANTALLA (o ESPACIO) PARA SALTAR</div>
+
+  <!-- START -->
+  <div class="overlay" id="startOverlay">
+    <h2>EL CAMINO A EGRESAR</h2>
+    <p>Saltá los obstáculos: Pobreza, Dificultades, Desmotivación y Problemas familiares.<br>
+    Las estrellas ⭐ son vidas extra que da el/la docente.</p>
+    <button class="btn" id="startBtn">▶ TOCÁ PARA EMPEZAR</button>
+  </div>
+
+  <!-- WIN -->
+  <div class="overlay hidden" id="winOverlay">
+    <h2>🎓 ¡EGRESASTE! 🎓</h2>
+    <p id="winText">Superaste todos los obstáculos del camino.</p>
+    <button class="btn" id="winBtn">▶ JUGAR DE NUEVO</button>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="overlay hidden" id="overOverlay">
+    <h2>SE ACABARON LAS VIDAS</h2>
+    <p>No pasa nada: en este juego (y en la vida) siempre se puede reintentar.</p>
+    <button class="btn" id="overBtn">↺ REINTENTAR</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const stage = document.getElementById('stage');
+  const world = document.getElementById('world');
+  const nenito = document.getElementById('nenito');
+  const livesRow = document.getElementById('livesRow');
+  const progressBar = document.getElementById('progressBar');
+  const toastEl = document.getElementById('toast');
+  const tapHint = document.getElementById('tapHint');
+  const startOverlay = document.getElementById('startOverlay');
+  const winOverlay = document.getElementById('winOverlay');
+  const overOverlay = document.getElementById('overOverlay');
+
+  const CHAR_X = 90;        // posición fija del nenito en pantalla (px desde el borde izq del viewport)
+  const GROUND_RATIO = 0.18;
+  const GRAVITY = 2600;
+  const JUMP_V = -980;
+  const SPEED = 165;        // px/seg de avance
+  const FINISH_X = 2650;
+
+  const OBJECTS = [
+    {x:520,  type:'obstacle', h:64,  emoji:'💸', label:'DIFICULTADES\nECONÓMICAS', req:46},
+    {x:780,  type:'star'},
+    {x:1080, type:'obstacle', h:104, emoji:'📖', label:'DIFICULTADES\nESCOLARES', req:70},
+    {x:1420, type:'obstacle', h:80,  emoji:'😔', label:'DESMOTIVACIÓN', req:55},
+    {x:1680, type:'star'},
+    {x:2000, type:'obstacle', h:124, emoji:'🏠', label:'PROBLEMAS\nFAMILIARES', req:82},
+  ];
+
+  let state = 'idle'; // idle | playing | hurt-pause | win | over
+  let worldX = 0;
+  let velY = 0;
+  let posY = 0; // 0 = piso, negativo = en el aire (hacia arriba)
+  let lives = 3;
+  let lastT = null;
+  let objEls = [];
+
+  function buildWorld(){
+    objEls.forEach(o=>o.el.remove());
+    objEls = [];
+
+    OBJECTS.forEach(o=>{
+      if(o.type==='obstacle'){
+        const el = document.createElement('div');
+        el.className='obj';
+        el.style.left = o.x+'px';
+        el.innerHTML = `<div class="obstacle-name">${o.label}</div>
+          <div class="pillar" style="height:${o.h}px"><span class="emoji">${o.emoji}</span></div>`;
+        world.appendChild(el);
+        objEls.push({...o, el, resolved:false});
+      } else {
+        const el = document.createElement('div');
+        el.className='obj';
+        el.style.left = o.x+'px';
+        el.innerHTML = `<div class="star">⭐</div>`;
+        world.appendChild(el);
+        objEls.push({...o, el, resolved:false});
+      }
+    });
+
+    const goal = document.createElement('div');
+    goal.className='obj goal';
+    goal.style.left = FINISH_X+'px';
+    goal.innerHTML = `<div class="flagpole"><div class="flag"></div></div><div class="goal-label">🏁 META</div>`;
+    world.appendChild(goal);
+    objEls.push({x:FINISH_X, type:'goal', el:goal, resolved:false});
+  }
+
+  function renderLives(){
+    livesRow.innerHTML = '';
+    for(let i=0;i<lives;i++){
+      const s=document.createElement('span');
+      s.className='heart';
+      s.textContent='❤️';
+      livesRow.appendChild(s);
+    }
+    if(lives<=0){
+      const s=document.createElement('span');
+      s.textContent='—';
+      livesRow.appendChild(s);
+    }
+  }
+
+  function showToast(text, color){
+    toastEl.textContent = text;
+    toastEl.style.color = color || '#fff';
+    toastEl.classList.remove('show');
+    void toastEl.offsetWidth;
+    toastEl.classList.add('show');
+  }
+
+  function resetGame(){
+    worldX = 0; velY = 0; posY = 0; lives = 3; lastT = null;
+    nenito.classList.remove('hurt');
+    renderLives();
+    buildWorld();
+    progressBar.style.width='0%';
+    nenito.style.transform = `translateY(0px)`;
+  }
+
+  function jump(){
+    if(state!=='playing') return;
+    if(posY===0){ // sólo si está en el piso
+      velY = JUMP_V;
+    }
+  }
+
+  function hurt(){
+    lives--; renderLives();
+    nenito.classList.add('hurt');
+    showToast('¡UPS! -1 VIDA', '#FF5C5C');
+    setTimeout(()=>nenito.classList.remove('hurt'), 400);
+    if(lives<=0){
+      state='over';
+      overOverlay.classList.remove('hidden');
+    }
+  }
+
+  function collectStar(){
+    lives = Math.min(lives+1, 6);
+    renderLives();
+    showToast('+1 VIDA EXTRA', '#FFE45C');
+  }
+
+  function win(){
+    state='win';
+    winOverlay.classList.remove('hidden');
+  }
+
+  function loop(t){
+    if(lastT===null) lastT=t;
+    const dt = Math.min((t-lastT)/1000, 0.033);
+    lastT = t;
+
+    if(state==='playing'){
+      worldX += SPEED*dt;
+
+      velY += GRAVITY*dt;
+      posY += velY*dt;
+      if(posY>0){ posY=0; velY=0; }
+
+      world.style.transform = `translateX(${-worldX + CHAR_X}px)`;
+      nenito.style.transform = `translateY(${posY}px)`;
+
+      const jumpHeight = -posY;
+
+      objEls.forEach(o=>{
+        if(o.resolved) return;
+        const screenX = o.x - worldX + CHAR_X;
+        const objLeft = screenX;
+        const objRight = screenX + (o.type==='obstacle' ? 74 : (o.type==='star'?46:10));
+        const charLeft = CHAR_X;
+        const charRight = CHAR_X+44;
+
+        if(objLeft < charRight && objRight > charLeft){
+          if(o.type==='obstacle'){
+            if(jumpHeight < o.req){
+              o.resolved = true;
+              hurt();
+            } else if(objLeft < charLeft - 10) {
+              o.resolved = true;
+              showToast('¡BIEN!', '#2ECC40');
+            }
+          } else if(o.type==='star'){
+            if(jumpHeight > 20){
+              o.resolved = true;
+              o.el.querySelector('.star').classList.add('collected');
+              collectStar();
+            }
+          } else if(o.type==='goal'){
+            o.resolved = true;
+            win();
+          }
+        }
+      });
+
+      const pct = Math.min(100, (worldX/FINISH_X)*100);
+      progressBar.style.width = pct+'%';
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  function startGame(){
+    resetGame();
+    state='playing';
+    startOverlay.classList.add('hidden');
+    winOverlay.classList.add('hidden');
+    overOverlay.classList.add('hidden');
+    tapHint.style.opacity='0.9';
+  }
+
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('winBtn').addEventListener('click', startGame);
+  document.getElementById('overBtn').addEventListener('click', startGame);
+
+  stage.addEventListener('pointerdown', (e)=>{
+    if(['startBtn','winBtn','overBtn'].includes(e.target.id)) return;
+    jump();
+  });
+  window.addEventListener('keydown', (e)=>{
+    if(e.code==='Space' || e.code==='ArrowUp'){ e.preventDefault(); jump(); }
+  });
+
+  buildWorld();
+  renderLives();
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
